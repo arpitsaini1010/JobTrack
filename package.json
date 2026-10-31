@@ -1,0 +1,15 @@
+{
+  "name": "jobtrack",
+  "version": "1.0.0",
+  "description": "Job Application & Tracker Platform",
+  "private": true,
+  "scripts": {
+    "build": "npm install --prefix client && npm run build --prefix client && npm install --prefix server",
+    "start": "node server/server.js",
+    "install:all": "npm install --prefix server && npm install --prefix client"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+

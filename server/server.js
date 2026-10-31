@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const { connectDB } = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -21,16 +22,15 @@ const PORT = process.env.PORT || 5000;
   await syncJobFeeds();
 })();
 
-// CORS configuration (SRS Section 5.3)
+// CORS configuration
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, Postman)
       if (!origin || origin === clientUrl || origin.startsWith('http://localhost:')) {
         return callback(null, true);
       }
-      return callback(null, true); // Permissive in dev, clientUrl in production
+      return callback(null, true);
     },
     credentials: true
   })
@@ -40,12 +40,12 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health / Welcome check
-app.get('/', (req, res) => {
+// API Health check
+app.get('/api/health', (req, res) => {
   res.json({
+    status: 'ok',
     message: 'JobTrack API is running',
-    version: '1.0.0',
-    documentation: '/api'
+    version: '1.0.0'
   });
 });
 
@@ -55,22 +55,31 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/companies', companyRoutes);
 
-// Serve frontend build in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/dist')));
+// Serve frontend build if client/dist exists
+const clientDistPath = path.resolve(__dirname, '../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
-    res.sendFile(path.resolve(__dirname, '../client/dist', 'index.html'));
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.json({
+      message: 'JobTrack API is running (Client build not found. Run npm run build)',
+      version: '1.0.0',
+      apiHealth: '/api/health'
+    });
   });
 }
 
 // Centralized error handler
 app.use(errorHandler);
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`===============================================`);
   console.log(`🚀 JobTrack Server running on port ${PORT}`);
-  console.log(`📡 API Base URL: http://localhost:${PORT}/api`);
+  console.log(`📡 API Base URL: http://0.0.0.0:${PORT}/api`);
   console.log(`===============================================`);
 });
 
